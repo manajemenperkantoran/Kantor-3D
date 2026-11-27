@@ -71,7 +71,9 @@ waktu:[{skenario:'Staf TU sering teralihkan notifikasi saat menyusun laporan. Te
 {skenario:'Kaprodi kewalahan mengurus tugas rutin. Langkah manajemen waktu yang tepat?',opsi:['Mengerjakan semuanya sendiri','Mendelegasikan tugas rutin ke staf yang kompeten','Membatalkan semua tugas','Lembur setiap hari'],benar:1,penjelasan:'Delegasi membebaskan waktu pimpinan untuk pekerjaan strategis.'}],
 sdm:[{skenario:'Susun urutan siklus pengelolaan SDM di sekolah.',langkah:['Merencanakan kebutuhan dan merekrut pelamar','Menyeleksi dan menetapkan pegawai terpilih','Orientasi dan penempatan pegawai','Pelatihan dan penilaian kinerja'],penjelasan:'Siklus MSDM dimulai dari perencanaan dan berakhir pada pengembangan serta penilaian.'},
 {skenario:'Susun urutan penilaian kinerja dosen kontrak.',langkah:['Menetapkan indikator kinerja','Mengumpulkan data kinerja','Menilai dan memberi umpan balik','Menyusun rencana pengembangan'],penjelasan:'Indikator ditetapkan dulu, lalu data dikumpulkan, dinilai, dan ditindaklanjuti.'}]};
-const N=2;
+const N=2,PROXY='';/* isi dengan URL Cloudflare Worker, mis. 'https://kantor3d.namaakun.workers.dev' */
+const CTX=['Fakultas Ilmu Pendidikan','SMK swasta','Dinas Pendidikan kabupaten','Prodi Manajemen Pendidikan','Sekolah Dasar negeri'];
+function vary(q){q=JSON.parse(JSON.stringify(q));q.skenario='Konteks: '+CTX[Math.floor(Math.random()*CTX.length)]+'. '+q.skenario;if(q.opsi){const b=q.opsi[q.benar],a=q.opsi.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}q.opsi=a;q.benar=a.indexOf(b)}return q}
 const st={};S.forEach(s=>st[s.id]={d:0,ok:0});let key='',cur=null,sample=null,score=0,seen=[];const t0=Date.now();
 try{window.claude&&claude.use("sample").then(x=>{sample=x}).catch(()=>{})}catch(e){}
 setInterval(()=>{const s=Math.floor((Date.now()-t0)/1e3);$('tm').textContent='⏱ '+Math.floor(s/60)+':'+String(s%60).padStart(2,'0')},1000);
@@ -94,6 +96,10 @@ g=G.korespon;box(1.8,.8,1,0x9b6b43,0,.4,0,g);box(1.1,.5,.8,0xb8c0cc,0,1.05,0,g);
 g=G.waktu;const ck=new THREE.Mesh(new THREE.CylinderGeometry(.85,.85,.12,32),new THREE.MeshStandardMaterial({color:0xffffff}));ck.rotation.x=Math.PI/2;ck.position.set(0,2,.1);g.add(ck);box(.06,.5,.05,0x222222,0,2.2,.2,g);const hd=box(.4,.06,.05,0x222222,.15,2,.2,g);
 g=G.sdm;box(1.6,.1,1.6,0x8d6e63,0,.75,0,g);[0xef6c00,0x2e7d32,0x6a1b9a].forEach((c,i)=>{const a=i*2.1,x=Math.sin(a)*1.5,z=Math.cos(a)*1.5;const b=new THREE.Mesh(new THREE.CylinderGeometry(.28,.32,.9,16),new THREE.MeshStandardMaterial({color:c}));b.position.set(x,.45,z);g.add(b);const h=new THREE.Mesh(new THREE.SphereGeometry(.24,16,16),new THREE.MeshStandardMaterial({color:0xf1c9a5}));h.position.set(x,1.15,z);g.add(h)});
 const mk=[];S.forEach((s,i)=>{const m=new THREE.Mesh(new THREE.SphereGeometry(.22,16,16),new THREE.MeshStandardMaterial({color:0xffc107,emissive:0xaa7a00}));m.position.y=3.1;G[s.id].add(m);mk.push(m)});
+const CG=new THREE.Group();sc.add(CG);let cards=[],onCard=null;
+function tex(t){const c=document.createElement('canvas');c.width=512;c.height=256;const x=c.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,512,256);x.strokeStyle='#2f5bea';x.lineWidth=10;x.strokeRect(5,5,502,246);x.fillStyle='#1b2333';x.font='bold 30px sans-serif';x.textAlign='center';let l='',ls=[];t.split(' ').forEach(k=>{if(l&&x.measureText(l+' '+k).width>440){ls.push(l);l=k}else l=l?l+' '+k:k});ls.push(l);ls=ls.slice(0,5);ls.forEach((m,i)=>x.fillText(m,256,138-(ls.length-1)*19+i*38));return new THREE.CanvasTexture(c)}
+function clearCards(){cards.forEach(m=>CG.remove(m));cards=[];onCard=null;mk.forEach(m=>m.visible=true)}
+function showCards(s,labels,cb){clearCards();onCard=cb;mk.forEach(m=>m.visible=false);labels.forEach((t,i)=>{const m=new THREE.Mesh(new THREE.PlaneGeometry(1.7,.85),new THREE.MeshBasicMaterial({map:tex(t),transparent:true}));const p=new THREE.Vector3(s.x+(i%2?.95:-.95),4.6-Math.floor(i/2),s.z);m.userData={card:i,tgt:p};m.position.set(p.x,p.y-1.5,p.z);CG.add(m);cards.push(m)});tgg.set(s.x,3.2,s.z);di=10}
 let th=.7,ph=1.05,di=13,tg=new THREE.Vector3(0,1,0),tgg=new THREE.Vector3(0,1,0);
 function place(){cam.position.set(tg.x+di*Math.sin(ph)*Math.sin(th),tg.y+di*Math.cos(ph),tg.z+di*Math.sin(ph)*Math.cos(th));cam.lookAt(tg)}
 function rs(){const r=$('stage').getBoundingClientRect();R.setSize(r.width,r.height,false);cam.aspect=r.width/r.height;cam.updateProjectionMatrix()}
@@ -106,40 +112,45 @@ else if(drag){const dx=e.clientX-drag.x,dy=e.clientY-drag.y;drag.m+=Math.abs(dx)
 cv.addEventListener('pointerup',e=>{delete pts[e.pointerId];if(drag&&drag.m<6)pick(e);if(!Object.keys(pts).length)drag=null});
 cv.addEventListener('wheel',e=>{e.preventDefault();di=Math.max(5,Math.min(20,di+e.deltaY*.01))},{passive:false});
 function pick(e){const r=cv.getBoundingClientRect(),v=new THREE.Vector2((e.clientX-r.left)/r.width*2-1,-(e.clientY-r.top)/r.height*2+1),rc=new THREE.Raycaster();rc.setFromCamera(v,cam);
-const h=rc.intersectObjects(Object.values(G),true);if(h.length){let o=h[0].object;while(o&&!o.userData.id)o=o.parent;if(o)open(o.userData.id)}}
+const hc=rc.intersectObjects(cards);if(hc.length&&onCard){onCard(hc[0].object.userData.card);return}const h=rc.intersectObjects(Object.values(G),true);if(h.length){let o=h[0].object;while(o&&!o.userData.id)o=o.parent;if(o)open(o.userData.id)}}
 $('bRe').onclick=()=>{th=.7;ph=1.05;di=13;tgg.set(0,1,0)};
 let ar=false,stream=null;
 $('bAR').onclick=async()=>{if(ar){stream&&stream.getTracks().forEach(t=>t.stop());$('vid').style.display='none';room.visible=true;ar=false;$('bAR').textContent='📱 Mode AR (kamera)';return}
 try{stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'}});$('vid').srcObject=stream;await $('vid').play();$('vid').style.display='block';room.visible=false;ar=true;di=9;$('bAR').textContent='❌ Tutup AR'}catch(e){alert('Kamera tidak bisa diakses. Izinkan akses kamera di browser, atau gunakan mode 3D biasa.')}};
-function loop(t){requestAnimationFrame(loop);tg.lerp(tgg,.08);place();mk.forEach((m,i)=>{m.position.y=3.1+Math.sin(t/400+i)*.15;m.material.color.set(st[S[i].id].d>=N?0x43c783:0xffc107);m.material.emissive.set(st[S[i].id].d>=N?0x1a7a45:0xaa7a00)});R.render(sc,cam)}
+function loop(t){requestAnimationFrame(loop);tg.lerp(tgg,.08);place();cards.forEach(m=>{m.position.lerp(m.userData.tgt,.12);m.quaternion.copy(cam.quaternion)});mk.forEach((m,i)=>{m.position.y=3.1+Math.sin(t/400+i)*.15;m.material.color.set(st[S[i].id].d>=N?0x43c783:0xffc107);m.material.emissive.set(st[S[i].id].d>=N?0x1a7a45:0xaa7a00)});R.render(sc,cam)}
 requestAnimationFrame(loop);
+async function viaProxy(pr){const r=await fetch(PROXY,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({prompt:pr})});const d=await r.json();return JSON.parse(String(d.text||'').replace(/```json|```/g,'').trim())}
 async function viaKey(pr){const r=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'content-type':'application/json','x-api-key':key,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},body:JSON.stringify({model:'claude-sonnet-5-5',max_tokens:900,messages:[{role:'user',content:pr}]})});const d=await r.json();return JSON.parse((d.content||[]).map(x=>x.text||'').join('').replace(/```json|```/g,'').trim())}
-setTimeout(()=>{if(!sample)$('bK').style.display='inline-block'},3000);
-$('bK').onclick=()=>{const k=prompt('Tempel API key Anthropic untuk mengaktifkan soal buatan AI. Kunci hanya disimpan di memori halaman ini dan hilang saat halaman ditutup. Kosongkan untuk memakai bank soal cadangan.');if(k){key=k.trim();$('bK').textContent='✅ AI aktif'}};
+try{key=localStorage.getItem('k3d_key')||''}catch(e){}
+if(key)$('bK').textContent='✅ AI aktif';
+setTimeout(()=>{if(!sample&&!PROXY)$('bK').style.display='inline-block'},3000);
+$('bK').onclick=()=>{const k=prompt(key?'AI sedang aktif. Tempel kunci baru untuk mengganti, atau ketik HAPUS untuk menghapus kunci dari perangkat ini.':'Tempel API key Anthropic untuk mengaktifkan soal buatan AI. Kunci disimpan di browser perangkat ini agar tidak perlu dimasukkan lagi. Gunakan hanya di perangkat pribadi.');if(!k)return;if(k.trim().toUpperCase()==='HAPUS'){key='';try{localStorage.removeItem('k3d_key')}catch(e){}$('bK').textContent='🔑 Aktifkan AI';return}key=k.trim();try{localStorage.setItem('k3d_key',key)}catch(e){}$('bK').textContent='✅ AI aktif'};
 /* ---------- Panel ---------- */
 const P=$('panel');
-function head(){P.textContent='';const c=el('div',null,'chips',P);S.forEach(s=>{const b=el('button',s.e+' '+s.n+' ('+Math.min(N,st[s.id].d)+'/'+N+')','chip'+(cur&&cur.id===s.id?' on':''),c);b.onclick=()=>open(s.id)})}
+function head(){clearCards();P.textContent='';const c=el('div',null,'chips',P);S.forEach(s=>{const b=el('button',s.e+' '+s.n+' ('+Math.min(N,st[s.id].d)+'/'+N+')','chip'+(cur&&cur.id===s.id?' on':''),c);b.onclick=()=>open(s.id)})}
 function home(){head();cur=null;el('h2','Selamat datang, calon manajer pendidikan! 👋',null,P).style.fontSize='17px';
 el('p','Kamu bertugas sebagai staf administrasi baru di sebuah kantor kampus. Jelajahi kantor 3D di samping dan selesaikan 7 stasiun (2 tantangan per stasiun, total sekitar 15–20 menit). Soal dibuat otomatis oleh AI, jadi setiap kali bermain kasusnya berbeda.',null,P);
-el('p','Mulai dengan mengetuk salah satu bola kuning di kantor 3D, atau pilih stasiun di atas. Tombol “Mode AR” menampilkan kantor di atas tampilan kamera ponselmu.','src',P)}
+el('p','Mulai dengan mengetuk salah satu bola kuning di kantor 3D, atau pilih stasiun di atas. Tombol “Mode AR” menampilkan kantor di atas tampilan kamera ponselmu.','src',P);setTimeout(()=>{if(!cur)el('p','Status AI: '+(sample?'aktif (Claude)':key?'aktif (API key)':PROXY?'aktif (server)':'offline, memakai bank soal cadangan'),'src',P)},1500)}
 function open(id){cur=S.find(s=>s.id===id);tgg.set(cur.x,1,cur.z);head();el('h2',cur.e+' '+cur.n,null,P).style.fontSize='17px';
 el('span',cur.t==='pilih'?'Interaksi: pilih keputusan':'Interaksi: susun urutan','tag',P);el('p',cur.m,null,P);
 const d=st[id].d;const b=el('button',d>=N?'Latihan bebas dengan AI (tanpa skor)':(d?'Lanjut tantangan '+(d+1)+'/'+N:'Mulai tantangan 1/'+N),'p',P);b.onclick=()=>next()}
 async function gen(s){const free=st[s.id].d>=N,n=st[s.id].d+1;
 const fmt=s.t==='pilih'?'{"skenario":"...","opsi":["..","..","..",".."],"benar":0-3,"penjelasan":".."}':'{"skenario":"...","langkah":["langkah 1 (urutan benar)","..","..",".."],"penjelasan":".."}';
 const pr='Kamu pembuat soal untuk mata kuliah Manajemen Perkantoran, mahasiswa Manajemen Pendidikan. Topik: '+s.topic+'. Buat satu studi kasus BARU bernuansa sekolah/kampus (tingkat '+(free?'sulit':['mudah','sedang','sulit'][n-1])+'). Hindari kemiripan dengan: '+seen.slice(-4).join(' | ')+'. Panjang skenario maksimal 2 kalimat, opsi singkat, letak jawaban benar diacak. Balas HANYA JSON valid tanpa markdown dengan format: '+fmt;
-if(sample||key){try{const j=sample?await sample.json(pr,{cache:false}):await viaKey(pr);const ok=s.t==='pilih'?(Array.isArray(j.opsi)&&j.opsi.length==4&&Number.isInteger(j.benar)&&j.benar>=0&&j.benar<4):(Array.isArray(j.langkah)&&j.langkah.length==4);if(j&&j.skenario&&ok){j.ai=1;return j}}catch(e){if(e&&e.code==='not_granted')sample=null}}
-const a=FB[s.id],o=st[s.id];o.f=o.f||0;return a[o.f++%a.length]}
+if(sample||key||PROXY){try{const j=sample?await sample.json(pr,{cache:false}):key?await viaKey(pr):await viaProxy(pr);const ok=s.t==='pilih'?(Array.isArray(j.opsi)&&j.opsi.length==4&&Number.isInteger(j.benar)&&j.benar>=0&&j.benar<4):(Array.isArray(j.langkah)&&j.langkah.length==4);if(j&&j.skenario&&ok){j.ai=1;j.pr=pr;j.via=sample?'Claude':key?'API key':'server';return j}}catch(e){if(e&&e.code==='not_granted')sample=null}}
+const a=FB[s.id],o=st[s.id];o.f=o.f||0;return vary(a[o.f++%a.length])}
 async function next(){const s=cur;head();el('h2',s.e+' '+s.n,null,P).style.fontSize='17px';el('p','🤖 AI sedang menyusun kasus baru untukmu…','src',P);const q=await gen(s);if(cur!==s)return;seen.push(q.skenario);render(s,q)}
 function render(s,q){head();el('h2',s.e+' '+s.n,null,P).style.fontSize='17px';const free=st[s.id].d>=N;
-el('span',(free?'Latihan bebas':'Tantangan '+(st[s.id].d+1)+'/'+N),'tag',P);el('span',q.ai?' 🤖 dibuat AI':' 📚 bank soal cadangan','src',P);
-el('p',q.skenario,null,P);const fb=el('div',null,'fb',P);fb.style.display='none';let done=false;
+el('span',(free?'Latihan bebas':'Tantangan '+(st[s.id].d+1)+'/'+N),'tag',P);el('span',q.ai?' 🤖 dibuat AI ('+q.via+')':' 📚 bank soal cadangan (konteks & urutan diacak otomatis)','src',P);
+el('p',q.skenario,null,P);
+if(q.ai){const d=el('details',null,'src',P);el('summary','🔍 Lihat cara kerja AI',null,d);el('div','Prompt yang dikirim ke AI: '+q.pr,null,d);el('pre','Jawaban AI (JSON): '+JSON.stringify({skenario:q.skenario,opsi:q.opsi,langkah:q.langkah,benar:q.benar},null,1),null,d).style.whiteSpace='pre-wrap'}
+el('p','Jawab lewat tombol di sini, atau ketuk langsung kartu 3D yang melayang di atas objek.','src',P);const fb=el('div',null,'fb',P);fb.style.display='none';let done=false;
 const fin=(ok,msg)=>{if(done)return;done=true;if(!free){st[s.id].d++;if(ok){st[s.id].ok++;score++}upd()}fb.style.display='block';fb.textContent=(ok?'✅ Tepat! ':'❌ Belum tepat. ')+(msg||'')+' '+(q.penjelasan||'');
 const nb=el('button',st[s.id].d>=N&&!free?'Selesai stasiun ✔':'Soal berikutnya →','p',fb);nb.style.display='block';nb.style.marginTop='8px';nb.onclick=()=>{if(S.every(x=>st[x.id].d>=N)&&!free&&!seenEnd){seenEnd=1;end()}else if(st[s.id].d>=N&&!free)open(s.id);else next()}};
-if(s.t==='pilih'){const w=el('div',null,null,P);q.opsi.forEach((o,i)=>{const b=el('button',o,'opt',w);b.onclick=()=>{if(done)return;[...w.children].forEach((x,j)=>{x.disabled=true;if(j===q.benar)x.classList.add('ok')});if(i!==q.benar)b.classList.add('no');fin(i===q.benar)}})}
+if(s.t==='pilih'){const w=el('div',null,null,P);const hs=q.opsi.map((o,i)=>{const b=el('button',o,'opt',w);const h=()=>{if(done)return;[...w.children].forEach((x,j)=>{x.disabled=true;if(j===q.benar)x.classList.add('ok')});if(i!==q.benar)b.classList.add('no');cards.forEach((c,j)=>{c.material.color.set(j===q.benar?0x9fe6b0:j===i?0xff9c94:0xffffff);c.material.opacity=(j===q.benar||j===i)?1:.45;if(j===q.benar)c.scale.setScalar(1.2)});fin(i===q.benar)};b.onclick=h;return h});showCards(s,q.opsi,i=>hs[i]())}
 else{const order=q.langkah.map((t,i)=>({t,i}));for(let i=order.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[order[i],order[j]]=[order[j],order[i]]}
 el('p','Ketuk langkah sesuai urutan yang benar:','src',P);const w=el('div',null,null,P),ol=el('ol',null,null,P),pick=[];
-order.forEach(o=>{const b=el('button',o.t,'opt',w);b.onclick=()=>{if(done)return;b.disabled=true;pick.push(o.i);el('li',o.t,null,ol);if(pick.length===4){const ok=pick.every((v,k)=>v===k);fin(ok,ok?'':'Urutan benar: '+q.langkah.map((x,k)=>(k+1)+'. '+x).join('; ')+'.')}}});
+const hs=order.map((o,n)=>{const b=el('button',o.t,'opt',w);const h=()=>{if(done||b.disabled)return;b.disabled=true;pick.push(o.i);el('li',o.t,null,ol);const c=cards[n];c.userData.tgt.set(s.x-2.55+(pick.length-1)*1.7,2.3,s.z);c.material.color.set(0xdbe6ff);if(pick.length===4){cards.forEach((cc,m)=>cc.material.color.set(pick.indexOf(order[m].i)===order[m].i?0x9fe6b0:0xff9c94));const ok=pick.every((v,k)=>v===k);fin(ok,ok?'':'Urutan benar: '+q.langkah.map((x,k)=>(k+1)+'. '+x).join('; ')+'.')}};b.onclick=h;return h});showCards(s,order.map(o=>o.t),i=>hs[i]());
 const r=el('button','↺ Ulangi susunan',null,P);r.onclick=()=>{if(!done)render(s,q)}}}
 let seenEnd=0;
 function end(){head();cur=null;el('h2','🎉 Semua misi selesai!',null,P).style.fontSize='17px';const m=Math.max(1,Math.round((Date.now()-t0)/6e4));
